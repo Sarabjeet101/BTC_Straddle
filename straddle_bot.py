@@ -1,8 +1,8 @@
 """
 Straddle Trading Bot for Delta Exchange India
-Sells 1 strike OTM straddle on BTCUSD options
-Entry: 4:30 PM | Exit: 5:25 PM
-SL: 150% of premium | TP: 92% of premium
+Sells 1 strike OTM straddle on ETHUSD options
+Entry: 1:30 PM | Exit: 5:25 PM
+SL/TP: Disabled (Time-based exit only)
 """
 import ccxt
 from config import Config
@@ -11,7 +11,7 @@ from datetime import datetime, time as dt_time
 import pytz
 
 class StraddleBot:
-    """BTCUSD Options Straddle Trading Bot"""
+    """ETHUSD Options Straddle Trading Bot"""
     
     def __init__(self):
         """Initialize the straddle bot"""
@@ -47,13 +47,13 @@ class StraddleBot:
         print(f"✓ Bot initialized with {len(self.markets)} markets")
         
         # Trading parameters
-        self.base_symbol = 'BTC/USD'
-        self.sl_multiplier = 1.5  # 150% of premium
-        self.tp_multiplier = 0.08  # 8% remaining (92% decay)
-        self.lot_size = 10  # 10 lots = 0.01 BTC (1 BTC = 1000 lots)
+        self.base_symbol = 'ETH/USD'
+        # self.sl_multiplier = 1.5  # 150% of premium (DISABLED)
+        # self.tp_multiplier = 0.08  # 8% remaining (92% decay) (DISABLED)
+        self.lot_size = 10  # 10 lots = 0.01 ETH (1 ETH = 1000 lots)
         
         # Entry and exit times (IST - Indian Standard Time)
-        self.entry_time = dt_time(16, 0)   # 4:00 PM
+        self.entry_time = dt_time(13, 30)   # 1:30 PM
         self.exit_time = dt_time(17, 25)   # 5:25 PM
         self.timezone = pytz.timezone('Asia/Kolkata')  # IST
         
@@ -69,26 +69,27 @@ class StraddleBot:
         
         print(f"\n📊 Strategy Configuration:")
         print(f"   Base: {self.base_symbol}")
-        print(f"   Lot Size: {self.lot_size} lots (0.01 BTC)")
+        print(f"   Lot Size: {self.lot_size} lots (0.01 ETH)")
         print(f"   Entry Time: {self.entry_time.strftime('%I:%M %p')}")
         print(f"   Exit Time: {self.exit_time.strftime('%I:%M %p')}")
-        print(f"   Stop Loss: {self.sl_multiplier * 100}% of premium")
-        print(f"   Take Profit: 92% decay (premium drops to {self.tp_multiplier * 100}%)")
+        # print(f"   Stop Loss: {self.sl_multiplier * 100}% of premium (DISABLED)")
+        # print(f"   Take Profit: 92% decay (premium drops to {self.tp_multiplier * 100}%) (DISABLED)")
+        print(f"   Exit Strategy: Time-based only (5:25 PM)")
     
     def get_current_btc_price(self):
-        """Get current BTC/USD price"""
+        """Get current ETH/USD price"""
         try:
-            ticker = self.exchange.fetch_ticker('BTC/USD:USD')
+            ticker = self.exchange.fetch_ticker('ETH/USD:USD')
             return ticker['last']
         except Exception as e:
-            print(f"Error fetching BTC price: {e}")
+            print(f"Error fetching ETH price: {e}")
             return None
     
     def get_option_symbols(self, expiry_date=None):
-        """Get all BTC option symbols for a specific expiry"""
+        """Get all ETH option symbols for a specific expiry"""
         options = []
         for symbol, market in self.markets.items():
-            if 'BTC/USD:USD' in symbol and ('-C' in symbol or '-P' in symbol):
+            if 'ETH/USD:USD' in symbol and ('-C' in symbol or '-P' in symbol):
                 options.append({
                     'symbol': symbol,
                     'strike': self.extract_strike(symbol),
@@ -100,7 +101,7 @@ class StraddleBot:
     def extract_strike(self, symbol):
         """Extract strike price from option symbol"""
         try:
-            # Format: BTC/USD:USD-YYMMDD-STRIKE-C/P
+            # Format: ETH/USD:USD-YYMMDD-STRIKE-C/P
             parts = symbol.split('-')
             if len(parts) >= 3:
                 return float(parts[-2])
@@ -111,7 +112,7 @@ class StraddleBot:
     def extract_expiry(self, symbol):
         """Extract expiry date from option symbol"""
         try:
-            # Format: BTC/USD:USD-YYMMDD-STRIKE-C/P
+            # Format: ETH/USD:USD-YYMMDD-STRIKE-C/P
             parts = symbol.split('-')
             if len(parts) >= 2:
                 return parts[1]
@@ -149,7 +150,7 @@ class StraddleBot:
         atm_strike = min(all_strikes, key=lambda x: abs(x - current_price))
         
         print(f"\n🎯 Strike Selection:")
-        print(f"   Current BTC Price: ${current_price:,.2f}")
+        print(f"   Current ETH Price: ${current_price:,.2f}")
         print(f"   ATM Strike: ${atm_strike:,.0f}")
         
         # Find 1 strike OTM from ATM
@@ -224,35 +225,39 @@ class StraddleBot:
             return None
     
     def check_sl_tp(self, option_type):
-        """Check if stop loss or take profit hit"""
-        position = self.active_positions[option_type]
-        if not position:
-            return False
-        
-        symbol = position['symbol']
-        entry_premium = self.entry_premiums[option_type]
-        current_price = self.get_option_price(symbol)
-        
-        if not current_price:
-            return False
-        
-        # For short positions, profit when price goes down, loss when price goes up
-        sl_price = entry_premium * self.sl_multiplier
-        tp_price = entry_premium * self.tp_multiplier
-        
-        if current_price >= sl_price:
-            print(f"🛑 Stop Loss hit for {option_type.upper()}: ${current_price:.2f} >= ${sl_price:.2f}")
-            self.close_position(symbol, position['quantity'])
-            self.active_positions[option_type] = None
-            return True
-        
-        if current_price <= tp_price:
-            print(f"🎯 Take Profit hit for {option_type.upper()}: ${current_price:.2f} <= ${tp_price:.2f}")
-            self.close_position(symbol, position['quantity'])
-            self.active_positions[option_type] = None
-            return True
-        
+        """Check if stop loss or take profit hit - DISABLED"""
+        # SL/TP logic is disabled - only time-based exit
         return False
+        
+        # ORIGINAL CODE (COMMENTED OUT):
+        # position = self.active_positions[option_type]
+        # if not position:
+        #     return False
+        # 
+        # symbol = position['symbol']
+        # entry_premium = self.entry_premiums[option_type]
+        # current_price = self.get_option_price(symbol)
+        # 
+        # if not current_price:
+        #     return False
+        # 
+        # # For short positions, profit when price goes down, loss when price goes up
+        # sl_price = entry_premium * self.sl_multiplier
+        # tp_price = entry_premium * self.tp_multiplier
+        # 
+        # if current_price >= sl_price:
+        #     print(f"🛑 Stop Loss hit for {option_type.upper()}: ${current_price:.2f} >= ${sl_price:.2f}")
+        #     self.close_position(symbol, position['quantity'])
+        #     self.active_positions[option_type] = None
+        #     return True
+        # 
+        # if current_price <= tp_price:
+        #     print(f"🎯 Take Profit hit for {option_type.upper()}: ${current_price:.2f} <= ${tp_price:.2f}")
+        #     self.close_position(symbol, position['quantity'])
+        #     self.active_positions[option_type] = None
+        #     return True
+        # 
+        # return False
     
     def is_entry_time(self):
         """Check if current time is entry time"""
@@ -282,10 +287,10 @@ class StraddleBot:
         print(f"🚀 ENTERING STRADDLE - {datetime.now(self.timezone).strftime('%Y-%m-%d %I:%M:%S %p')}")
         print("="*60)
         
-        # Get current BTC price
+        # Get current ETH price
         btc_price = self.get_current_btc_price()
         if not btc_price:
-            print("Failed to get BTC price")
+            print("Failed to get ETH price")
             return False
         
         # Find OTM strikes
@@ -302,8 +307,9 @@ class StraddleBot:
             self.entry_premiums['call'] = call_position['premium']
             print(f"   Premium per lot: ${call_position['premium']:.2f}")
             print(f"   Total lots: {call_position['quantity']}")
-            print(f"   SL: ${call_position['premium'] * self.sl_multiplier:.2f}")
-            print(f"   TP: ${call_position['premium'] * self.tp_multiplier:.2f}")
+            # print(f"   SL: ${call_position['premium'] * self.sl_multiplier:.2f} (DISABLED)")
+            # print(f"   TP: ${call_position['premium'] * self.tp_multiplier:.2f} (DISABLED)")
+            print(f"   Exit: Time-based (5:25 PM)")
         
         # Sell put option
         print("\n📉 Selling Put Option...")
@@ -313,8 +319,9 @@ class StraddleBot:
             self.entry_premiums['put'] = put_position['premium']
             print(f"   Premium per lot: ${put_position['premium']:.2f}")
             print(f"   Total lots: {put_position['quantity']}")
-            print(f"   SL: ${put_position['premium'] * self.sl_multiplier:.2f}")
-            print(f"   TP: ${put_position['premium'] * self.tp_multiplier:.2f}")
+            # print(f"   SL: ${put_position['premium'] * self.sl_multiplier:.2f} (DISABLED)")
+            # print(f"   TP: ${put_position['premium'] * self.tp_multiplier:.2f} (DISABLED)")
+            print(f"   Exit: Time-based (5:25 PM)")
         
         print("\n✓ Straddle entered successfully!")
         return True
@@ -378,13 +385,12 @@ class StraddleBot:
                 
                 # Monitor active positions
                 if self.has_active_positions():
-                    # Check SL/TP for call
-                    if self.active_positions['call']:
-                        self.check_sl_tp('call')
-                    
-                    # Check SL/TP for put
-                    if self.active_positions['put']:
-                        self.check_sl_tp('put')
+                    # SL/TP checks are disabled - only time-based exit
+                    # if self.active_positions['call']:
+                    #     self.check_sl_tp('call')
+                    # 
+                    # if self.active_positions['put']:
+                    #     self.check_sl_tp('put')
                     
                     # Check exit time
                     if self.is_exit_time():
